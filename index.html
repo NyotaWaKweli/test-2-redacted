@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<title>[REDACTED] — A Writing Challenge</title>
+	<style>
+		:root {
+			--bg: #0a0a0a;
+			--surface: #1a1a1a;
+			--text: #ffffff;
+			--text-dim: #888888;
+			--border: rgba(255,255,255,0.15);
+			--active-bg: #ffffff;
+			--active-text: #0a0a0a;
+		}
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			background: var(--bg); color: var(--text);
+			min-height: 100vh; min-height: 100dvh;
+			display: flex; flex-direction: column;
+			-webkit-font-smoothing: antialiased; overflow-x: hidden;
+		}
+		.splash-overlay {
+			position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+			background: var(--bg); z-index: 999;
+			display: flex; flex-direction: column; align-items: center; justify-content: center;
+			opacity: 1; pointer-events: auto; transition: opacity 0.5s ease;
+		}
+		.splash-overlay.fade-out { opacity: 0; pointer-events: none; }
+		.splash-content { text-align: center; }
+		.splash-title { font-size: 1.8rem; font-weight: 700; letter-spacing: 2px; color: var(--text); }
+		.splash-tagline { font-size: 0.75rem; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-top: 6px; }
+		.splash-loader-wrapper { width: 180px; margin: 28px auto 0; }
+		.splash-loader-track { width: 100%; height: 2px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+		.splash-loader-bar { height: 100%; background: var(--text); border-radius: 2px; width: 0%; transition: width 0.1s linear; }
+		.splash-brand { position: absolute; bottom: 24px; left: 24px; font-size: 0.7rem; font-weight: 600; letter-spacing: 2px; color: var(--text-dim); }
+		.tab-content-area { flex: 1; overflow-y: auto; padding: 20px 20px 100px; -webkit-overflow-scrolling: touch; }
+		.tab-panel { display: none; }
+		.tab-panel.active { display: block; }
+		.tab-bar {
+			position: fixed; bottom: 0; left: 0; right: 0;
+			background: var(--bg); border-top: 1px solid var(--border);
+			display: flex; justify-content: space-around; align-items: center;
+			padding: 10px 0; padding-bottom: calc(10px + env(safe-area-inset-bottom,0px));
+			z-index: 100;
+		}
+		.tab-btn {
+			background: none; border: none; cursor: pointer;
+			display: flex; flex-direction: column; align-items: center; gap: 5px;
+			padding: 8px 20px; border-radius: 12px; transition: all 0.2s ease;
+			font-family: inherit; color: var(--text-dim); font-size: 0.65rem;
+			font-weight: 500; letter-spacing: 0.3px; -webkit-tap-highlight-color: transparent;
+			position: relative;
+		}
+		.tab-btn svg { width: 22px; height: 22px; transition: all 0.2s ease; }
+		.tab-btn .icon-stroke { stroke: var(--text-dim); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.2s ease; }
+		.tab-btn .icon-fill { fill: var(--text-dim); transition: fill 0.2s ease; }
+		.tab-btn.active { background: var(--active-bg); color: var(--active-text); }
+		.tab-btn.active .icon-stroke { stroke: var(--active-text); }
+		.tab-btn.active .icon-fill { fill: var(--active-text); }
+		.tab-badge { position: absolute; top: 2px; right: 6px; background: #e91e63; color: #fff; font-size: 0.55rem; font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center; line-height: 1.3; }
+		.tab-label { font-size: 0.65rem; font-weight: 500; letter-spacing: 0.3px; }
+		.header { text-align: center; padding: 20px 0 4px; position: sticky; top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+		.header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 1px; color: var(--text); }
+		.header .subtitle { font-size: 0.75rem; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+		.info-section { max-width: 600px; margin: 0 auto; }
+		.info-section h2 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: var(--text); }
+		.info-section p { font-size: 0.9rem; color: var(--text-dim); line-height: 1.65; margin-bottom: 14px; }
+		.poem-preview { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px 20px; margin: 20px 0; text-align: left; }
+		.poem-preview .poem-title { font-size: 0.8rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; }
+		.poem-preview .poem-line { font-size: 1rem; line-height: 1.9; color: var(--text); font-family: "Georgia","Times New Roman",serif; }
+		.poem-preview .redacted-word { color: var(--text-dim); }
+		.horizontal-scroll-section { margin: 24px 0; }
+		.horizontal-scroll-section .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; text-align: center; }
+		.horizontal-track { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding: 4px 0 12px; scrollbar-width: none; }
+		.horizontal-track::-webkit-scrollbar { display: none; }
+		.poem-card { flex: 0 0 74vw; max-width: 360px; border-radius: 14px; padding: 22px 18px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); scroll-snap-align: start; display: flex; flex-direction: column; justify-content: center; min-height: 250px; }
+		.poem-card .card-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; opacity: 0.5; }
+		.poem-card .poem-line { font-size: 0.9rem; line-height: 1.85; font-family: "Georgia","Times New Roman",serif; text-align: left; }
+		.poem-card.version-card { color: #0a0a0a; }
+		.poem-card.version-card .card-label { opacity: 0.7; font-weight: 700; }
+		.poem-card.version-card .filled-word { font-weight: 700; font-size: 0.9rem; }
+		.version-sad { background: #e0e0e0; }
+		.version-love { background: #f8d7da; }
+		.version-joy { background: #fff9c4; }
+		.version-heartbreak { background: #d1c4e9; }
+		.scroll-progress-wrapper { display: flex; align-items: center; margin-top: 4px; padding: 0 4px; }
+		.scroll-progress-track { flex: 1; height: 3px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; position: relative; }
+		.scroll-progress-thumb { position: absolute; left: 0; top: 0; height: 100%; background: rgba(255,255,255,0.5); border-radius: 3px; transition: width 0.15s ease, left 0.15s ease; min-width: 20%; }
+		.scroll-hint-text { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 1px; margin-left: 10px; white-space: nowrap; }
+		.submit-section { max-width: 500px; margin: 0 auto; text-align: center; }
+		.submit-section h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+		.submit-section p { font-size: 0.9rem; color: var(--text-dim); line-height: 1.65; margin-bottom: 14px; }
+		.welcome-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.6; }
+		.submit-btn { display: inline-block; width: 100%; max-width: 320px; padding: 14px 24px; font-size: 1rem; font-weight: 600; color: var(--active-text); background: var(--active-bg); border: none; border-radius: 10px; cursor: pointer; transition: all 0.15s; font-family: inherit; letter-spacing: 0.3px; margin-top: 8px; }
+		.submit-btn:hover { opacity: 0.9; transform: scale(1.01); }
+		.submit-btn:active { transform: scale(0.97); }
+		.submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+		.name-input-group { width: 100%; max-width: 320px; margin: 0 auto 16px; text-align: left; }
+		.name-input-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+		.name-input-group input { width: 100%; padding: 12px 14px; font-size: 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-family: inherit; transition: border-color 0.2s; }
+		.name-input-group input:focus { outline: none; border-color: var(--text); }
+		.input-note { font-size: 0.7rem; color: var(--text-dim); margin-top: 6px; line-height: 1.4; }
+		.input-warning { font-size: 0.7rem; color: #f28b82; margin-top: 4px; }
+		.submit-error { color: #f28b82; font-size: 0.8rem; margin-top: 8px; display: none; }
+		.submit-error.show { display: block; }
+		.slots-container { margin: 16px 0; }
+		.slot-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; background: var(--surface); }
+		.slot-label { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+		.slot-status { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-dim); }
+		.slot-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+		.slot-dot.empty { background: transparent; border: 2px solid var(--text-dim); }
+		.slot-dot.filled { border: none; }
+		.poem-list-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: background 0.15s; background: var(--surface); text-align: left; }
+		.poem-list-item:hover { background: rgba(255,255,255,0.05); }
+		.poem-list-item .poem-list-name { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+		.poem-list-item .poem-list-meta { font-size: 0.7rem; color: var(--text-dim); }
+		.poem-list-item .poem-list-arrow { color: var(--text-dim); font-size: 0.8rem; }
+		.color-select { display: flex; gap: 14px; justify-content: center; margin: 16px 0; }
+		.color-circle { width: 40px; height: 40px; border-radius: 50%; cursor: pointer; transition: all 0.15s; border: 3px solid transparent; }
+		.color-circle.selected { border-color: #fff; transform: scale(1.1); }
+		.color-sad { background: #e0e0e0; }
+		.color-love { background: #f8d7da; }
+		.color-joy { background: #fff9c4; }
+		.color-heartbreak { background: #d1c4e9; }
+		.submission-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 20px; position: relative; transition: opacity 0.3s; }
+		.submission-card.deleting { opacity: 0.3; pointer-events: none; }
+		.submission-card img { width: 100%; height: auto; display: block; }
+		.submission-card .card-footer { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; }
+		.submission-author { color: var(--text-dim); }
+		.submission-author strong { color: #fff; font-weight: 700; }
+		.like-btn { display: flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; font-family: inherit; font-size: 0.85rem; color: var(--text-dim); transition: all 0.15s; }
+		.like-btn.liked { color: #e91e63; }
+		.like-btn svg { width: 20px; height: 20px; transition: transform 0.15s; }
+		.like-btn.liked svg { animation: likeBounce 0.3s ease; }
+		@keyframes likeBounce { 0%{transform:scale(1);} 30%{transform:scale(1.25);} 60%{transform:scale(0.9);} 100%{transform:scale(1);} }
+		.like-btn .like-heart-fill { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+		.like-btn.liked .like-heart-fill { fill: #e91e63; stroke: #e91e63; }
+		.delete-btn-card { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15); color: #f28b82; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; z-index: 5; }
+		.delete-btn-card:hover { background: rgba(244,67,54,0.7); border-color: #f44336; color: #fff; }
+		.sort-bar { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; flex-wrap: wrap; }
+		.sort-pill { padding: 7px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--text-dim); cursor: pointer; transition: all 0.15s; font-family: inherit; white-space: nowrap; }
+		.sort-pill:hover { background: rgba(255,255,255,0.1); color: #fff; }
+		.sort-pill.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); color: #fff; }
+		.loading { text-align: center; color: var(--text-dim); padding: 40px 0; font-size: 0.9rem; }
+		.empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+		.empty-state .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+		.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: #2e7d32; color: #fff; padding: 12px 24px; border-radius: 24px; font-size: 0.9rem; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; box-shadow: 0 6px 24px rgba(0,0,0,0.5); letter-spacing: 0.2px; max-width: 90vw; text-align: center; }
+		.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+		.toast.error { background: #c62828; }
+		.back-row { padding: 4px 0 16px; }
+		.back-btn { color: var(--text-dim); text-decoration: none; font-size: 0.85rem; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background: none; border: none; font-family: inherit; }
+		.back-btn:hover { color: #fff; }
+		.entry-input { width: 100%; background: transparent; border: none; border-bottom: 1px solid rgba(0,0,0,0.2); color: #0a0a0a; font-family: "Georgia","Times New Roman",serif; font-size: 0.9rem; padding: 2px 0; outline: none; transition: border-color 0.2s; text-align: left; }
+		.entry-input:focus { border-bottom-color: #0a0a0a; }
+		.timer-box { background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px;text-align:center; }
+		.timer-box p { font-size:0.8rem;color:var(--text-dim);margin:0; }
+		.timer-box strong { color:#fff; }
+		.timer-box.closed { background:rgba(244,67,54,0.08);border-color:rgba(244,67,54,0.2); }
+		.timer-box.closed p { color:#f28b82; }
+		.confirm-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 500; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+		.confirm-overlay.show { opacity: 1; pointer-events: auto; }
+		.confirm-dialog { background: #1a1a1a; border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+		.confirm-dialog p { font-size: 0.9rem; color: var(--text); margin-bottom: 20px; line-height: 1.5; }
+		.confirm-dialog .confirm-buttons { display: flex; gap: 10px; }
+		.confirm-dialog .confirm-buttons button { flex: 1; padding: 12px; font-size: 0.9rem; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+		.confirm-yes-btn { background: #e91e63; color: #fff; }
+		.confirm-yes-btn:hover { background: #f50057; }
+		.confirm-no-btn { background: rgba(255,255,255,0.08); color: var(--text); }
+		.confirm-no-btn:hover { background: rgba(255,255,255,0.15); }
+	</style>
+	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+	<div class="splash-overlay" id="splashOverlay">
+		<div class="splash-content"><div class="splash-title">[REDACTED]</div><div class="splash-tagline">for entertainment purposes only</div><div class="splash-loader-wrapper"><div class="splash-loader-track"><div class="splash-loader-bar" id="splashBar"></div></div></div></div>
+		<div class="splash-brand">G U G A</div>
+	</div>
+
+	<div class="header"><h1>[REDACTED]</h1><p class="subtitle">A Writing Challenge</p></div>
+
+	<div class="tab-content-area" id="tabContentArea">
+		<div class="tab-panel active" id="panelInfo"><div class="info-section"><div class="poem-preview"><div class="poem-title">The Message</div><div class="poem-line">I <span class="redacted-word">[REDACTED]</span> you</div><div class="poem-line">and you <span class="redacted-word">[REDACTED]</span></div><div class="poem-line">the <span class="redacted-word">[REDACTED]</span></div><div class="poem-line">we <span class="redacted-word">[REDACTED]</span></div><div class="poem-line">in the <span class="redacted-word">[REDACTED]</span></div><div class="poem-line">where <span class="redacted-word">[REDACTED]</span></div><div class="poem-line">used to <span class="redacted-word">[REDACTED]</span></div><div class="poem-line">Now I <span class="redacted-word">[REDACTED]</span></div><div class="poem-line">the <span class="redacted-word">[REDACTED]</span></div><div class="poem-line">alone.</div></div><p>This style has been used where readers address a situation through their own perspective. The blanks are intentional. What you fill in depends entirely on you. Two people can fill the same blank with completely different words and both are right. There is no wrong version. Just different perspectives.</p><p>Below are four examples of how different moods can transform the same poem. Swipe sideways through them.</p><div class="horizontal-scroll-section"><div class="section-label">Four Moods, One Structure</div><div class="horizontal-track" id="moodTrack"><div class="poem-card version-card version-sad"><div class="card-label">Sad</div><div class="poem-line">I <span class="filled-word">called</span> you</div><div class="poem-line">and you <span class="filled-word">left</span></div><div class="poem-line">the <span class="filled-word">silence</span></div><div class="poem-line">we <span class="filled-word">waited</span></div><div class="poem-line">in the <span class="filled-word">dark</span></div><div class="poem-line">where <span class="filled-word">nothing</span></div><div class="poem-line">used to <span class="filled-word">hurt</span></div><div class="poem-line">Now I <span class="filled-word">cry</span></div><div class="poem-line">the <span class="filled-word">ghost</span></div><div class="poem-line">alone.</div></div><div class="poem-card version-card version-love"><div class="card-label">Love</div><div class="poem-line">I <span class="filled-word">chose</span> you</div><div class="poem-line">and you <span class="filled-word">held</span></div><div class="poem-line">the <span class="filled-word">promise</span></div><div class="poem-line">we <span class="filled-word">danced</span></div><div class="poem-line">in the <span class="filled-word">garden</span></div><div class="poem-line">where <span class="filled-word">roses</span></div><div class="poem-line">used to <span class="filled-word">grow</span></div><div class="poem-line">Now I <span class="filled-word">keep</span></div><div class="poem-line">the <span class="filled-word">ring</span></div><div class="poem-line">alone.</div></div><div class="poem-card version-card version-joy"><div class="card-label">Joy</div><div class="poem-line">I <span class="filled-word">found</span> you</div><div class="poem-line">and you <span class="filled-word">became</span></div><div class="poem-line">the <span class="filled-word">reason</span></div><div class="poem-line">we <span class="filled-word">laughed</span></div><div class="poem-line">in the <span class="filled-word">kitchen</span></div><div class="poem-line">where <span class="filled-word">coffee</span></div><div class="poem-line">used to <span class="filled-word">bloom</span></div><div class="poem-line">Now I <span class="filled-word">drink</span></div><div class="poem-line">the <span class="filled-word">memory</span></div><div class="poem-line">alone.</div></div><div class="poem-card version-card version-heartbreak"><div class="card-label">Heartbreak</div><div class="poem-line">I <span class="filled-word">lost</span> you</div><div class="poem-line">and you <span class="filled-word">forgot</span></div><div class="poem-line">the <span class="filled-word">photo</span></div><div class="poem-line">we <span class="filled-word">ended</span></div><div class="poem-line">in the <span class="filled-word">hospital</span></div><div class="poem-line">where <span class="filled-word">machines</span></div><div class="poem-line">used to <span class="filled-word">beep</span></div><div class="poem-line">Now I <span class="filled-word">delete</span></div><div class="poem-line">the <span class="filled-word">evidence</span></div><div class="poem-line">alone.</div></div></div><div class="scroll-progress-wrapper"><div class="scroll-progress-track"><div class="scroll-progress-thumb" id="scrollProgressThumb"></div></div><span class="scroll-hint-text">swipe &rarr;</span></div></div><p>As you can see, the same poem. The same structure. Only a few words changed. But the entire meaning shifts. Same bones, different skin.</p><p>So there is no universal way to fill those blanks. It depends entirely on how you see the world from your side. Your life experiences. Your mindset. The things that shaped you.</p><p>This challenge doesn't seek perfection. It seeks <strong>expression</strong>. It's for those brave enough to write down their minds through alphabets.</p><p style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:0.85rem;color:var(--text-dim);"><strong style="color:var(--text);">Deadline:</strong> Submissions accepted up to <strong style="color:var(--text);">03 JUNE 2026, 2:00 AM UK time</strong>.</p><p>Everyone is welcome. No entry barrier. No experience needed. Go to the <strong>Submit</strong> tab to participate.</p></div></div>
+
+		<div class="tab-panel" id="panelSubmit"><div class="submit-section"><div id="submitClosed" style="display:none;text-align:center;padding:60px 20px;"><div style="font-size:3rem;margin-bottom:16px;opacity:0.5;">&#128274;</div><h2>Submissions Closed</h2><p style="color:var(--text-dim);">The deadline was 03 JUNE 2026. Thank you to everyone who participated.</p><p style="color:var(--text-dim);">Visit the Submissions tab to explore more.</p></div><div id="submitWelcome"><div class="welcome-icon">&#9997;</div><h2>Welcome to the Challenge</h2><p>There are <strong>three poems</strong> in this challenge and you can submit up to <strong>two</strong> of them. Choose the ones that speak to you most.</p><p>Once you start, you'll have <strong>72 hours</strong> from your first submission to complete your entries.</p><button class="submit-btn" id="btnJoinChallenge">Join the Challenge</button></div><div id="submitName" style="display:none;"><div class="welcome-icon">&#128394;</div><h2>Choose Your Name</h2><p>This is the name that will appear on all your submissions.</p><div class="name-input-group"><label for="challengerName">Your Name</label><input type="text" id="challengerName" placeholder="Enter your name" maxlength="30" autocomplete="off" /><div class="input-note">Better to use your <strong>SoloLearn username</strong> so you can be easily recognized if announced as a winner.</div><div class="input-warning">&#9888; This action is irreversible. You won't be able to change or edit your name later.</div></div><p class="submit-error" id="nameError">Please enter a name to continue.</p><button class="submit-btn" id="btnConfirmName">Confirm & Enter Challenge</button></div><div id="submitForms" style="display:none;"><p style="color:var(--text-dim);margin-bottom:4px;">Writing as</p><h2 id="displayName" style="margin-bottom:20px;"></h2><div id="submissionTimer" style="display:none;" class="timer-box"><p>Your Submission window closes in <strong id="timerCountdown">71h 59m 59s</strong></p></div><div id="submissionClosedBox" style="display:none;" class="timer-box closed"><p>&#128274; Your submission window has closed</p></div><div class="slots-container" id="slotsContainer"></div><p style="font-size:0.8rem;color:var(--text-dim);margin:8px 0 16px;">The following are the poems for this challenge. Tap one to begin.</p><div id="poemList"></div></div><div id="poemEntryView" style="display:none;"><div class="back-row"><button class="back-btn" id="backToPoemList">&larr; Back to poems</button></div><div id="entryContent"></div></div><div id="previewView" style="display:none;"></div><div id="submittedView" style="display:none;text-align:center;padding:40px 20px;"><div style="font-size:3rem;margin-bottom:12px;">&#9989;</div><h2>Submitted!</h2><p style="color:var(--text-dim);">Your entry has been shared to the community.</p><button class="submit-btn" id="btnViewSubmission">View</button></div></div></div>
+
+		<div class="tab-panel" id="panelSubmissions"><div class="info-section"><div class="sort-bar" id="sortBar"><button class="sort-pill active" data-sort="recent">&#9200; Recent</button><button class="sort-pill" data-sort="likes">&#10084; Likes</button><button class="sort-pill" data-sort="mine">&#128100; My Submissions</button><button class="sort-pill" data-sort="winners">&#127942; Winners</button></div><div class="loading" id="subsLoading">Loading submissions...</div><div class="empty-state" id="subsEmpty" style="display:none;"><div class="icon">&#128196;</div><p id="subsEmptyMsg">No submissions yet.</p></div><div id="subsFeed"></div></div></div>
+	</div>
+
+	<div class="tab-bar">
+		<button class="tab-btn active" data-tab="panelInfo"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="10" class="icon-stroke"/><line x1="12" y1="16" x2="12" y2="12" class="icon-stroke"/><circle cx="12" cy="8" r="0.5" class="icon-fill"/></svg><span class="tab-label">How It Works</span></button>
+		<button class="tab-btn" data-tab="panelSubmit"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 20h9" class="icon-stroke"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" class="icon-stroke"/></svg><span class="tab-label">Submit</span></button>
+		<button class="tab-btn" data-tab="panelSubmissions" id="tabSubmissionsBtn"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" class="icon-stroke"/><polyline points="14 2 14 8 20 8" class="icon-stroke"/><line x1="16" y1="13" x2="8" y2="13" class="icon-stroke"/><line x1="16" y1="17" x2="8" y2="17" class="icon-stroke"/></svg><span class="tab-label">Submissions</span><span class="tab-badge" id="subsBadge" style="display:none;">0</span></button>
+	</div>
+
+	<div class="toast" id="toast"></div>
+	<div class="confirm-overlay" id="confirmOverlay"><div class="confirm-dialog"><p id="confirmMsg">Are you sure?</p><div class="confirm-buttons"><button class="confirm-no-btn" id="confirmNo">Cancel</button><button class="confirm-yes-btn" id="confirmYes">Delete</button></div></div></div>
+
+	<script>
+	(function(){
+		// ============================================================
+		// SOLOLEARN IFRAME FIX #1: Safe storage wrapper with memory fallback
+		// localStorage is blocked in third-party iframes due to sandboxing.
+		// This wrapper silently falls back to in-memory storage when needed.
+		// Data will NOT persist between page reloads inside the iframe,
+		// but the app works fully during the session.
+		// ============================================================
+		var storage = (function(){
+			var data = {}, available = false;
+			try {
+				var test = '__t__';
+				localStorage.setItem(test, test);
+				localStorage.removeItem(test);
+				available = true;
+			} catch(e) {
+				console.warn('[REDACTED] localStorage blocked by iframe sandbox. Using memory fallback.');
+			}
+			return {
+				getItem: function(k) { return available ? localStorage.getItem(k) : (data[k] || null); },
+				setItem: function(k, v) { if(available) localStorage.setItem(k, v); else data[k] = String(v); },
+				removeItem: function(k) { if(available) localStorage.removeItem(k); else delete data[k]; }
+			};
+		})();
+
+		var SUPABASE_URL = 'https://noepicxxityzhcdmbjpd.supabase.co';
+		var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vZXBpY3h4aXR5emhjZG1ianBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjM1ODgsImV4cCI6MjA5NDM5OTU4OH0.xWjZ4YE4jhfWmAvr39qlhoxXb3JCrhm8sEG3R4_9RYg';
+		var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+		var splashBar = document.getElementById('splashBar'), splashOverlay = document.getElementById('splashOverlay');
+		var patterns = [[0,12,1200,18,600,18,1800,35,400,35,900,55,300,55,1400,75,200,75,2200,100],[0,30,400,30,4500,45,300,45,1200,70,200,70,2100,85,150,85,1350,100],[0,10,900,14,700,14,1400,32,600,32,1600,50,500,50,1800,78,300,78,1500,100],[0,40,300,40,3000,55,300,55,1000,65,300,65,2700,90,300,90,1400,100],[0,5,1500,8,1000,8,900,22,700,22,1200,38,600,38,1800,92,400,92,800,100]];
+		var chosen = patterns[Math.floor(Math.random()*patterns.length)], step = 0;
+		function runSplash(){ if(step >= chosen.length){ splashBar.style.width='100%'; setTimeout(function(){ splashOverlay.classList.add('fade-out'); }, 500); return; } splashBar.style.width = chosen[step]+'%'; step++; setTimeout(runSplash, chosen[step]); step++; }
+		runSplash();
+
+		var IMGBB_KEY = 'fd2eef8b4df24ab82126c352c5efa9af';
+		var DEADLINE = new Date('2026-06-03T02:00:00Z').getTime();
+		var SUBMIT_WELCOME_KEY = 'rcWelcomeV4', SUBMIT_NAME_KEY = 'rcNameV4', SUBMITTED_POEMS_KEY = 'rcPoemsV4', LIKES_KEY = 'rcLikesV4', FIRST_SUBMIT_KEY = 'rcFirstTimeV4', MY_IDS_KEY = 'rcMyIdsV4';
+		var SUBMIT_WINDOW_MS = 72*60*60*1000;
+		var colorClasses = ['color-sad','color-love','color-joy','color-heartbreak'], colorHex = ['#e0e0e0','#f8d7da','#fff9c4','#d1c4e9'];
+		var poems = [
+			{title:'The Briefing', lines:8, blanks:5, template:['[REDACTED] me.','I am [REDACTED]','and [REDACTED]','is all I [REDACTED]',"Don't [REDACTED]",'the [REDACTED].']},
+			{title:'The Archive', lines:13, blanks:8, template:['I found your [REDACTED]','in the [REDACTED]','where we used to [REDACTED]','It still [REDACTED]','like [REDACTED]','I almost [REDACTED]','but the [REDACTED]','was [REDACTED]','So I [REDACTED]','and [REDACTED]','the [REDACTED]','alone.']},
+			{title:'The [REDACTED]', lines:22, blanks:23, template:['The [REDACTED]','I want to [REDACTED] you.','Not in the [REDACTED] way.','In the way that [REDACTED]','when you [REDACTED]','and I [REDACTED]','and the [REDACTED]','was [REDACTED]',"and we didn't [REDACTED]",'because [REDACTED]','was [REDACTED]',"enough.",'I miss [REDACTED].','I miss [REDACTED] [REDACTED].','I miss the [REDACTED]','of [REDACTED]','when [REDACTED]','was still [REDACTED]','and I was still [REDACTED]','and [REDACTED]','meant [REDACTED]','and not [REDACTED]','what it [REDACTED]','now.']}
+		];
+		var pendingLikes = new Map();
+
+		function $(id){ return document.getElementById(id); }
+		function showToast(msg, isErr){ var t = $('toast'); t.textContent = msg; t.className = 'toast' + (isErr ? ' error' : ''); setTimeout(function(){ t.classList.add('show'); }, 10); clearTimeout(t._ht); t._ht = setTimeout(function(){ t.classList.remove('show'); }, 2500); }
+		function escapeHtml(text){ var div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+		function getSubmittedPoems(){ try{ var v = storage.getItem(SUBMITTED_POEMS_KEY); return v ? JSON.parse(v) : []; } catch(e){ return []; } }
+		function addSubmittedPoem(title){ var arr = getSubmittedPoems(); arr.push(title); storage.setItem(SUBMITTED_POEMS_KEY, JSON.stringify(arr)); }
+		function removeSubmittedPoem(title){ var arr = getSubmittedPoems(); var idx = arr.indexOf(title); if(idx !== -1){ arr.splice(idx, 1); storage.setItem(SUBMITTED_POEMS_KEY, JSON.stringify(arr)); } }
+		function hasSubmittedPoem(title){ return getSubmittedPoems().indexOf(title) !== -1; }
+		function getLikedSubmissions(){ try{ var v = storage.getItem(LIKES_KEY); return v ? JSON.parse(v) : []; } catch(e){ return []; } }
+		function addLikedSubmission(id){ var arr = getLikedSubmissions(); arr.push(String(id)); storage.setItem(LIKES_KEY, JSON.stringify(arr)); }
+		function removeLikedSubmission(id){ var arr = getLikedSubmissions(); var idx = arr.indexOf(String(id)); if(idx !== -1) arr.splice(idx, 1); storage.setItem(LIKES_KEY, JSON.stringify(arr)); }
+		function hasLikedSubmission(id){ return getLikedSubmissions().indexOf(String(id)) !== -1; }
+		function getMyIds(){ try{ var v = storage.getItem(MY_IDS_KEY); return v ? JSON.parse(v) : []; } catch(e){ return []; } }
+		function addMyId(id){ var arr = getMyIds(); arr.push(Number(id)); storage.setItem(MY_IDS_KEY, JSON.stringify(arr)); }
+		function removeMyId(id){ var arr = getMyIds(); var idx = arr.indexOf(Number(id)); if(idx !== -1){ arr.splice(idx, 1); storage.setItem(MY_IDS_KEY, JSON.stringify(arr)); } }
+		function isMySubmission(id){ return getMyIds().indexOf(Number(id)) !== -1; }
+
+		var tabBtns = document.querySelectorAll('.tab-btn'), tabPanels = document.querySelectorAll('.tab-panel'), tabContentArea = $('tabContentArea');
+		tabBtns.forEach(function(b){ b.addEventListener('click', function(){ var id = this.getAttribute('data-tab'); tabBtns.forEach(function(x){ x.classList.remove('active'); }); tabPanels.forEach(function(p){ p.classList.remove('active'); }); this.classList.add('active'); $(id).classList.add('active'); tabContentArea.scrollTop = 0; }); });
+		window.switchTab = function(id){ var b = document.querySelector('[data-tab="'+id+'"]'); if(b) b.click(); };
+
+		var deadlinePassed = Date.now() > DEADLINE, welcomeSeen = storage.getItem(SUBMIT_WELCOME_KEY), registeredName = storage.getItem(SUBMIT_NAME_KEY);
+		var welcomeDiv = $('submitWelcome'), nameDiv = $('submitName'), formsDiv = $('submitForms'), closedDiv = $('submitClosed');
+		welcomeDiv.style.display = 'none'; nameDiv.style.display = 'none'; formsDiv.style.display = 'none'; closedDiv.style.display = 'none';
+		if(deadlinePassed){ closedDiv.style.display = 'block'; }
+		else if(!welcomeSeen){ welcomeDiv.style.display = 'block'; }
+		else if(!registeredName){ nameDiv.style.display = 'block'; }
+		else{ formsDiv.style.display = 'block'; $('displayName').textContent = registeredName; renderSlots(); renderPoemList(); updateSubmissionTimer(); }
+
+		$('btnJoinChallenge').addEventListener('click', function(){ storage.setItem(SUBMIT_WELCOME_KEY, '1'); welcomeDiv.style.display = 'none'; nameDiv.style.display = 'block'; tabContentArea.scrollTop = 0; });
+		$('btnConfirmName').addEventListener('click', function(){ var n = $('challengerName').value.trim(); if(!n){ $('nameError').classList.add('show'); return; } $('nameError').classList.remove('show'); storage.setItem(SUBMIT_NAME_KEY, n); nameDiv.style.display = 'none'; formsDiv.style.display = 'block'; $('displayName').textContent = n; renderSlots(); renderPoemList(); updateSubmissionTimer(); tabContentArea.scrollTop = 0; });
+		$('challengerName').addEventListener('input', function(){ if(this.value.trim()) $('nameError').classList.remove('show'); });
+
+		function getSlotColor(slotIndex){ var arr = getSubmittedPoems(); if(arr.length > slotIndex){ var stored = storage.getItem('rcSlotColorV4_' + arr[slotIndex]); return stored ? parseInt(stored) : -1; } return -1; }
+		function renderSlots(){ var c = $('slotsContainer'); c.innerHTML = ''; for(var i = 0; i < 2; i++){ var ci = getSlotColor(i), filled = ci !== -1; c.innerHTML += '<div class="slot-row"><span class="slot-label">Slot ' + (i+1) + '</span><span class="slot-status">' + (filled ? 'Filled' : 'Empty') + ' <div class="slot-dot ' + (filled ? 'filled' : 'empty') + '"' + (filled ? ' style="background:' + colorHex[ci] + '"' : '') + '></div></span></div>'; } }
+		function renderPoemList(){ var list = $('poemList'); list.innerHTML = ''; var submitted = getSubmittedPoems(), count = submitted.length, firstTime = storage.getItem(FIRST_SUBMIT_KEY), windowExpired = firstTime && (Date.now() - parseInt(firstTime) > SUBMIT_WINDOW_MS); poems.forEach(function(p, i){ var alreadySubmitted = hasSubmittedPoem(p.title), disabled = (count >= 2 && !alreadySubmitted) || (windowExpired && !alreadySubmitted); var div = document.createElement('div'); div.className = 'poem-list-item'; div.innerHTML = '<div><div class="poem-list-name">' + p.title + '</div><div class="poem-list-meta">Lines: ' + p.lines + ' &bull; Redacted: ' + p.blanks + '</div></div><span class="poem-list-arrow">' + (alreadySubmitted ? '&#10003;' : (windowExpired ? '&#128274;' : '&rarr;')) + '</span>'; if(!alreadySubmitted && !disabled){ div.addEventListener('click', function(){ openPoemEntry(i); }); div.style.cursor = 'pointer'; } else { div.style.opacity = '0.5'; div.style.cursor = 'not-allowed'; } list.appendChild(div); }); }
+
+		var submissionTimerInterval = null;
+		function updateSubmissionTimer(){ if(submissionTimerInterval) clearInterval(submissionTimerInterval); var firstTime = storage.getItem(FIRST_SUBMIT_KEY), timerDiv = $('submissionTimer'), closedBox = $('submissionClosedBox'), countdown = $('timerCountdown'); if(!firstTime){ timerDiv.style.display = 'none'; closedBox.style.display = 'none'; return; } var expiry = parseInt(firstTime) + SUBMIT_WINDOW_MS, remaining = expiry - Date.now(); if(remaining <= 0){ timerDiv.style.display = 'none'; closedBox.style.display = 'block'; renderPoemList(); return; } timerDiv.style.display = 'block'; closedBox.style.display = 'none'; function tick(){ var r = expiry - Date.now(); if(r <= 0){ timerDiv.style.display = 'none'; closedBox.style.display = 'block'; renderPoemList(); if(submissionTimerInterval) clearInterval(submissionTimerInterval); return; } var h = Math.floor(r/3600000), m = Math.floor((r%3600000)/60000), s = Math.floor((r%60000)/1000); countdown.textContent = h + 'h ' + m + 'm ' + s + 's'; } tick(); submissionTimerInterval = setInterval(tick, 1000); }
+
+		var currentEntryPoemIdx = -1, currentEntryColor = -1, currentEntryValues = [];
+		function openPoemEntry(idx){
+			currentEntryPoemIdx = idx; currentEntryColor = -1; currentEntryValues = [];
+			var p = poems[idx];
+			$('poemList').parentElement.style.display = 'none';
+			document.querySelector('#submitForms .slots-container').style.display = 'none';
+			document.querySelector('#submitForms > p').style.display = 'none';
+			$('displayName').style.display = 'none';
+			$('submissionTimer').style.display = 'none';
+			$('submissionClosedBox').style.display = 'none';
+			$('poemEntryView').style.display = 'block';
+			$('previewView').style.display = 'none';
+			$('submittedView').style.display = 'none';
+
+			var html = '<p style="font-size:0.8rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">' + p.title + '</p><p style="font-size:0.7rem;color:var(--text-dim);margin-bottom:16px;">Lines: ' + p.lines + ' &bull; Redacted spaces: ' + p.blanks + '</p><p style="font-size:0.7rem;color:var(--text-dim);text-align:center;margin-bottom:8px;">See the original below and swipe right to fill your entry</p><div class="horizontal-scroll-section"><div class="horizontal-track" id="entryTrack">';
+			html += '<div class="poem-card" style="background:#1a1a1a;color:var(--text-dim);"><div class="card-label" style="color:var(--text-dim);">Original</div>';
+			for(var i = 0; i < p.template.length; i++){ html += '<div class="poem-line" style="color:var(--text-dim);">' + p.template[i].replace(/\[REDACTED\]/g, '<span style="opacity:0.6;">[REDACTED]</span>') + '</div>'; }
+			html += '</div><div class="poem-card entry-card-white" style="background:#ffffff;color:#0a0a0a;"><div class="card-label" style="color:#0a0a0a;opacity:0.6;">Your Entry</div>';
+			for(var j = 0; j < p.template.length; j++){
+				var line = p.template[j], parts = line.split('[REDACTED]');
+				html += '<div class="poem-line" style="color:#0a0a0a;">';
+				for(var k = 0; k < parts.length; k++){
+					html += parts[k].replace(/ /g, '&nbsp;');
+					if(k < parts.length - 1){ html += '<input type="text" class="entry-input" data-blank="' + j + '-' + k + '" maxlength="15" placeholder="..." style="width:90px;color:#0a0a0a;border-bottom-color:rgba(0,0,0,0.2);" autocapitalize="off" autocomplete="off" autocorrect="off" />'; }
+				}
+				html += '</div>';
+			}
+			html += '</div></div><div class="scroll-progress-wrapper"><div class="scroll-progress-track"><div class="scroll-progress-thumb" id="entryProgressThumb"></div></div><span class="scroll-hint-text">swipe &rarr;</span></div></div><button class="submit-btn" id="btnOpenColor" disabled style="margin-top:16px;">Continue to Choose Color</button>';
+			$('entryContent').innerHTML = html;
+			tabContentArea.scrollTop = 0;
+
+			var inputs = $('entryContent').querySelectorAll('.entry-input');
+			function validateAll(){ var allFilled = true; inputs.forEach(function(inp){ if(!inp.value.trim()) allFilled = false; }); $('btnOpenColor').disabled = !allFilled; }
+			inputs.forEach(function(inp){
+				inp.addEventListener('input', function(){
+					var v = inp.value;
+					v = v.replace(/[^\x20-\x7E]/g, '');
+					v = v.replace(/^\s+/, '');
+					v = v.replace(/\s{2,}/g, ' ');
+					inp.value = v;
+					validateAll();
+				});
+				inp.addEventListener('keydown', function(e){
+					if(e.key === ' '){
+						var v = inp.value, spaceCount = (v.match(/ /g) || []).length;
+						if(spaceCount >= 1 && v.lastIndexOf(' ') < v.length - 1){ e.preventDefault(); }
+					}
+				});
+				inp.addEventListener('blur', function(){ var v = inp.value; v = v.replace(/\s+$/, ''); inp.value = v; validateAll(); });
+			});
+
+			setTimeout(function(){
+				var track = $('entryTrack'), thumb = $('entryProgressThumb');
+				if(track && thumb){
+					function up(){
+						var sl = track.scrollLeft, sw = track.scrollWidth - track.clientWidth;
+						if(sw <= 0){ thumb.style.width = '100%'; thumb.style.left = '0'; return; }
+						var p = sl / sw, tw = Math.max(20, (track.clientWidth / track.scrollWidth) * 100);
+						thumb.style.width = tw + '%';
+						thumb.style.left = (p * (100 - tw)) + '%';
+					}
+					track.addEventListener('scroll', up);
+					up();
+				}
+			}, 200);
+
+			// ============================================================
+			// SOLOLEARN IFRAME FIX #2: Hardened autoscroll with fallback
+			// scrollIntoView can fail in sandboxed iframes; we catch and fallback
+			// ============================================================
+			$('btnOpenColor').addEventListener('click', function(){
+				var vals = [];
+				inputs.forEach(function(inp){ vals.push(inp.value.trim()); });
+				if(vals.length === 0) return;
+				currentEntryValues = vals;
+				showColorSelection();
+				setTimeout(function(){
+					var colorPanel = document.getElementById('colorSelectContainer');
+					if(colorPanel){
+						try {
+							colorPanel.scrollIntoView({behavior: 'smooth', block: 'start'});
+						} catch(e) {
+							tabContentArea.scrollTop = colorPanel.offsetTop - 20;
+						}
+						setTimeout(function(){ tabContentArea.scrollTop += 100; }, 350);
+					} else {
+						tabContentArea.scrollTop = 99999;
+					}
+				}, 150);
+			});
+		}
+
+		function showColorSelection(){
+			var existing = document.getElementById('colorSelectContainer');
+			if(existing) existing.remove();
+			var html = '<div id="colorSelectContainer" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><p style="font-size:0.85rem;color:var(--text);margin-bottom:12px;">Choose a color for your submission</p><div class="color-select" id="colorSelect">';
+			for(var i = 0; i < 4; i++){ html += '<div class="color-circle ' + colorClasses[i] + '" data-color="' + i + '"></div>'; }
+			html += '</div><button class="submit-btn" id="btnPreview" disabled style="margin-top:12px;">Preview</button></div>';
+			$('entryContent').insertAdjacentHTML('beforeend', html);
+
+			// Force scroll to reveal the new content in iframe
+			setTimeout(function(){
+				try {
+					$('colorSelectContainer').scrollIntoView({behavior: 'smooth', block: 'center'});
+				} catch(e) {
+					tabContentArea.scrollTop = tabContentArea.scrollHeight;
+				}
+			}, 50);
+
+			var circles = $('entryContent').querySelectorAll('#colorSelect .color-circle');
+			circles.forEach(function(c){
+				c.addEventListener('click', function(){
+					circles.forEach(function(x){ x.classList.remove('selected'); });
+					this.classList.add('selected');
+					currentEntryColor = parseInt(this.getAttribute('data-color'));
+					$('btnPreview').disabled = false;
+				});
+			});
+			$('btnPreview').addEventListener('click', function(){ if(currentEntryColor === -1) return; showPreview(); });
+		}
+
+		function showPreview(){
+			$('poemEntryView').style.display = 'none';
+			$('previewView').style.display = 'block';
+			$('previewView').innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:#fff;border-radius:50%;margin:0 auto 16px;animation:spin 0.8s linear infinite;"></div><p style="color:var(--text-dim);">Checking your entry...</p></div><style>@keyframes spin{to{transform:rotate(360deg);}}</style>';
+			tabContentArea.scrollTop = 0;
+			setTimeout(function(){ renderPreviewCard(); }, 2000);
+		}
+
+		function renderPreviewCard(){
+			var p = poems[currentEntryPoemIdx], bg = colorHex[currentEntryColor];
+			var html = '<p style="text-align:center;font-size:0.85rem;color:var(--text-dim);margin-bottom:12px;">This is how your work looks like</p><div style="background:' + bg + ';color:#0a0a0a;border-radius:14px;padding:22px 18px;max-width:360px;margin:0 auto;box-shadow:0 4px 16px rgba(0,0,0,0.3);"><div style="font-size:0.6rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;opacity:0.7;">' + p.title + '</div>';
+			var vi = 0;
+			for(var i = 0; i < p.template.length; i++){
+				var line = p.template[i], parts = line.split('[REDACTED]');
+				html += '<div style="font-size:0.9rem;line-height:1.85;font-family:Georgia,serif;text-align:left;">';
+				for(var k = 0; k < parts.length; k++){
+					html += parts[k];
+					if(k < parts.length - 1){ html += '<strong>' + currentEntryValues[vi] + '</strong>'; vi++; }
+				}
+				html += '</div>';
+			}
+			html += '</div><p style="text-align:center;font-size:0.8rem;color:var(--text-dim);margin-top:16px;">Click confirm to submit, or cancel to go back and edit.</p><div style="display:flex;gap:10px;max-width:320px;margin:12px auto 0;"><button class="submit-btn" id="btnCancelPreview" style="background:transparent;border:1px solid var(--border);color:var(--text);">Cancel</button><button class="submit-btn" id="btnConfirmSubmit">Confirm</button></div>';
+			$('previewView').innerHTML = html;
+			tabContentArea.scrollTop = 0;
+			$('btnCancelPreview').addEventListener('click', function(){ $('previewView').style.display = 'none'; $('poemEntryView').style.display = 'block'; tabContentArea.scrollTop = 0; });
+			$('btnConfirmSubmit').addEventListener('click', function(){ submitEntry(); });
+		}
+
+		// ============================================================
+		// SOLOLEARN IFRAME FIX #3: Hardened submission with imgbb fallback
+		// canvas.toBlob + XHR to imgbb can fail in sandboxed iframes.
+		// We validate the blob, add timeouts, and fallback to text-only save.
+		// IMPORTANT: Make your Supabase `image_url` column nullable.
+		// ============================================================
+		function submitEntry(){
+			$('previewView').style.display = 'none';
+			$('submittedView').style.display = 'block';
+			tabContentArea.scrollTop = 0;
+
+			var p = poems[currentEntryPoemIdx], bg = colorHex[currentEntryColor];
+			var canvas = document.createElement('canvas');
+			canvas.width = 420; canvas.height = 520;
+			var ctx = canvas.getContext('2d');
+			ctx.fillStyle = bg; ctx.fillRect(0, 0, 420, 520);
+			ctx.fillStyle = '#0a0a0a';
+			ctx.font = 'bold 10px -apple-system,sans-serif';
+			ctx.fillText(p.title.toUpperCase(), 30, 40);
+			ctx.font = '16px Georgia,serif';
+			var y = 80, vi = 0;
+			for(var i = 0; i < p.template.length; i++){
+				var line = p.template[i], parts = line.split('[REDACTED]'), x = 30;
+				for(var k = 0; k < parts.length; k++){
+					ctx.font = '16px Georgia,serif';
+					ctx.fillText(parts[k], x, y);
+					x += ctx.measureText(parts[k]).width;
+					if(k < parts.length - 1){
+						ctx.font = 'bold 16px Georgia,serif';
+						ctx.fillText(currentEntryValues[vi], x, y);
+						x += ctx.measureText(currentEntryValues[vi]).width;
+						vi++;
+					}
+				}
+				y += 28;
+			}
+
+			canvas.toBlob(function(blob){
+				if(!blob){
+					showToast('Image generation failed. Saving text only.', true);
+					saveToSupabase(null);
+					return;
+				}
+
+				var fd = new FormData();
+				fd.append('image', blob, 'poem.png');
+				fd.append('key', IMGBB_KEY);
+
+				var xhr = new XMLHttpRequest();
+				xhr.open('POST', 'https://api.imgbb.com/1/upload', true);
+				xhr.timeout = 25000;
+
+				xhr.onload = function(){
+					if(xhr.status === 200){
+						try{
+							var r = JSON.parse(xhr.responseText);
+							if(r.success && r.data && r.data.url){
+								saveToSupabase(r.data.url);
+								return;
+							}
+						} catch(e){}
+					}
+					// imgbb failed or returned invalid response -- save without image
+					showToast('Image upload unavailable. Saving text entry.', true);
+					saveToSupabase(null);
+				};
+
+				xhr.onerror = xhr.ontimeout = function(){
+					showToast('Upload failed. Saving text only.', true);
+					saveToSupabase(null);
+				};
+
+				xhr.send(fd);
+			}, 'image/png');
+		}
+
+		async function saveToSupabase(imageUrl){
+			var p = poems[currentEntryPoemIdx];
+			var entry = {
+				name: registeredName,
+				poem_title: p.title,
+				words: currentEntryValues.slice(),
+				color: currentEntryColor,
+				image_url: imageUrl,  // null if imgbb failed (make column nullable in Supabase)
+				likes: 0,
+				winner: false
+			};
+
+			var {data, error} = await sb.from('submissions').insert([entry]).select();
+			if(error){
+				showToast('Failed to submit. Try again.', true);
+				return;
+			}
+			if(data && data.length > 0){
+				addMyId(data[0].id);
+			}
+			addSubmittedPoem(p.title);
+			storage.setItem('rcSlotColorV4_' + p.title, currentEntryColor);
+			if(!storage.getItem(FIRST_SUBMIT_KEY)){
+				storage.setItem(FIRST_SUBMIT_KEY, Date.now().toString());
+			}
+			renderSlots();
+			renderPoemList();
+			updateSubmissionTimer();
+			showToast('&#10003; Submitted!');
+		}
+
+		$('btnViewSubmission').addEventListener('click', function(){ switchTab('panelSubmissions'); $('submittedView').style.display = 'none'; resetSubmitTab(); });
+		$('backToPoemList').addEventListener('click', function(){ resetSubmitTab(); });
+		function resetSubmitTab(){
+			$('poemEntryView').style.display = 'none';
+			$('previewView').style.display = 'none';
+			$('submittedView').style.display = 'none';
+			$('poemList').parentElement.style.display = '';
+			document.querySelector('#submitForms .slots-container').style.display = '';
+			document.querySelector('#submitForms > p').style.display = '';
+			$('displayName').style.display = '';
+			updateSubmissionTimer();
+			renderSlots();
+			renderPoemList();
+			tabContentArea.scrollTop = 0;
+		}
+
+		var allSubs = [], currentSort = 'recent';
+		var sortPills = document.querySelectorAll('#sortBar .sort-pill');
+		sortPills.forEach(function(p){ p.addEventListener('click', function(){ var s = this.getAttribute('data-sort'); if(s === currentSort) return; currentSort = s; sortPills.forEach(function(x){ x.classList.remove('active'); }); this.classList.add('active'); renderSubsFeed(); }); });
+		var confirmCallback = null;
+		function showConfirm(msg, cb){ $('confirmMsg').textContent = msg; $('confirmOverlay').classList.add('show'); confirmCallback = cb; }
+		function hideConfirm(){ $('confirmOverlay').classList.remove('show'); confirmCallback = null; }
+		$('confirmYes').addEventListener('click', function(){ if(confirmCallback) confirmCallback(); hideConfirm(); });
+		$('confirmNo').addEventListener('click', hideConfirm);
+		$('confirmOverlay').addEventListener('click', function(e){ if(e.target === $('confirmOverlay')) hideConfirm(); });
+
+		async function fetchSubs(){
+			$('subsLoading').style.display = 'block';
+			$('subsEmpty').style.display = 'none';
+			$('subsFeed').innerHTML = '';
+			var {data, error} = await sb.from('submissions').select('*').order('created_at', {ascending: false});
+			$('subsLoading').style.display = 'none';
+			if(error){ allSubs = []; renderSubsFeed(); updateBadge(); return; }
+			allSubs = data || [];
+			renderSubsFeed();
+			updateBadge();
+		}
+		function updateBadge(){ var badge = $('subsBadge'), count = allSubs.length; if(count > 0){ badge.style.display = 'block'; badge.textContent = count; } else { badge.style.display = 'none'; } }
+
+		function deleteSubmission(sub, cardElement){
+			var id = Number(sub.id);
+			showConfirm('Delete this submission? This cannot be undone.', async function(){
+				var {error} = await sb.from('submissions').delete().eq('id', id);
+				if(error){ showToast('Failed to delete. Try again.', true); return; }
+				if(cardElement) cardElement.classList.add('deleting');
+				removeMyId(id);
+				removeSubmittedPoem(sub.poem_title);
+				storage.removeItem('rcSlotColorV4_' + sub.poem_title);
+				setTimeout(function(){
+					allSubs = allSubs.filter(function(s){ return Number(s.id) !== id; });
+					renderSubsFeed();
+					updateBadge();
+					renderSlots();
+					renderPoemList();
+					showToast('&#10003; Submission deleted');
+				}, 300);
+			});
+		}
+
+		function renderSubsFeed(){
+			var feed = $('subsFeed'); feed.innerHTML = ''; var filtered = allSubs.slice();
+			if(currentSort === 'likes'){ filtered.sort(function(a,b){ return (b.likes || 0) - (a.likes || 0); }); }
+			else if(currentSort === 'mine'){ var name = registeredName || ''; filtered = filtered.filter(function(s){ return s.name === name; }); }
+			else if(currentSort === 'winners'){ filtered = filtered.filter(function(s){ return s.winner; }); if(filtered.length === 0 && Date.now() < DEADLINE){ $('subsEmpty').style.display = 'block'; $('subsEmptyMsg').textContent = 'Winners have not yet been selected.'; return; } }
+			if(filtered.length === 0){ $('subsEmpty').style.display = 'block'; $('subsEmptyMsg').textContent = currentSort === 'mine' ? "You haven't submitted anything yet." : 'No submissions yet.'; return; }
+			$('subsEmpty').style.display = 'none';
+			for(var i = 0; i < filtered.length; i++){
+				var s = filtered[i];
+				if(!s || !s.image_url) continue;
+				var card = document.createElement('div');
+				card.className = 'submission-card';
+				var liked = hasLikedSubmission(String(s.id)), isMine = isMySubmission(Number(s.id)), showDelete = isMine && !deadlinePassed && currentSort === 'mine';
+				var safeName = escapeHtml(s.name || 'Anonymous');
+				card.innerHTML = (showDelete ? '<button class="delete-btn-card" data-id="' + s.id + '" title="Delete">&#10005;</button>' : '') + '<img src="' + s.image_url + '" alt="Submission by ' + safeName + '" loading="lazy" /><div class="card-footer"><span class="submission-author">By <strong>' + safeName + '</strong></span><button class="like-btn' + (liked ? ' liked' : '') + '" data-id="' + s.id + '"><svg viewBox="0 0 24 24" width="20" height="20"><path class="like-heart-fill" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ' + (s.likes || 0) + '</button></div>';
+				feed.appendChild(card);
+				if(showDelete){ card.querySelector('.delete-btn-card').addEventListener('click', function(e){ e.stopPropagation(); deleteSubmission(s, card); }); }
+				(function(sub, cardEl, likeBtn){
+					likeBtn.addEventListener('click', async function(){
+						var id = String(sub.id);
+						if(pendingLikes.has(id)) return;
+						var currentlyLiked = likeBtn.classList.contains('liked'), newLikedState = !currentlyLiked;
+						likeBtn.classList.toggle('liked', newLikedState);
+						var displayCount = (sub.likes || 0) + (newLikedState ? 1 : -1);
+						displayCount = Math.max(0, displayCount);
+						likeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path class="like-heart-fill" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ' + displayCount;
+						if(newLikedState) addLikedSubmission(id); else removeLikedSubmission(id);
+						pendingLikes.set(id, true);
+						likeBtn.style.pointerEvents = 'none';
+						likeBtn.style.opacity = '0.7';
+						try{
+							var {data, error} = await sb.rpc('toggle_like', {submission_id: parseInt(id), should_like: newLikedState});
+							if(error) throw error;
+							sub.likes = data;
+						} catch(err){
+							likeBtn.classList.toggle('liked', currentlyLiked);
+							sub.likes = currentlyLiked ? (sub.likes || 0) + 1 : Math.max(0, (sub.likes || 0) - 1);
+							likeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path class="like-heart-fill" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ' + (sub.likes || 0);
+							if(currentlyLiked) addLikedSubmission(id); else removeLikedSubmission(id);
+						} finally{
+							pendingLikes.delete(id);
+							likeBtn.style.pointerEvents = '';
+							likeBtn.style.opacity = '';
+						}
+					});
+				})(s, card, card.querySelector('.like-btn'));
+			}
+		}
+
+		function loadSubs(){ fetchSubs(); }
+		document.querySelector('[data-tab="panelSubmissions"]').addEventListener('click', function(){ renderSubsFeed(); loadSubs(); });
+
+		var moodTrack = $('moodTrack'), progressThumb = $('scrollProgressThumb');
+		if(moodTrack && progressThumb){
+			function up(){
+				var sl = moodTrack.scrollLeft, sw = moodTrack.scrollWidth - moodTrack.clientWidth;
+				if(sw <= 0){ progressThumb.style.width = '100%'; progressThumb.style.left = '0'; return; }
+				var p = sl / sw, tw = Math.max(20, (moodTrack.clientWidth / moodTrack.scrollWidth) * 100);
+				progressThumb.style.width = tw + '%';
+				progressThumb.style.left = (p * (100 - tw)) + '%';
+			}
+			moodTrack.addEventListener('scroll', up);
+			up();
+		}
+		loadSubs();
+	})();
+	</script>
+</body>
+</html>
